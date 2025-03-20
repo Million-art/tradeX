@@ -14,15 +14,7 @@ BOT_TOKEN = os.environ.get('BOT_TOKEN')
 ADMIN_USER_ID = int(os.environ.get('ADMIN_USER_ID'))
 
 # Initialize Firebase
-firebase_config_str = os.environ.get('FIREBASE_SERVICE_ACCOUNT')
-if not firebase_config_str:
-    raise ValueError("FIREBASE_SERVICE_ACCOUNT environment variable is not set.")
-
-try:
-    firebase_config = json.loads(firebase_config_str)
-except json.JSONDecodeError as e:
-    raise ValueError("FIREBASE_SERVICE_ACCOUNT is not a valid JSON string.") from e
-
+firebase_config = json.loads(os.environ.get('FIREBASE_SERVICE_ACCOUNT'))
 cred = credentials.Certificate(firebase_config)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
@@ -175,12 +167,3 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
         self.wfile.write('Hello, BOT is running!'.encode('utf-8'))
-
-# Export the handler for Vercel
-def vercel_handler(request):
-    if request.method == 'POST':
-        handler().do_POST()
-    elif request.method == 'GET':
-        handler().do_GET()
-    else:
-        return {'statusCode': 405, 'body': 'Method Not Allowed'}
