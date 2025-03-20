@@ -1,10 +1,15 @@
-# config/settings.py
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 FIREBASE_CONFIG = {
-    "apiKey": "AIzaSyBuyjls6eY2HUfOk2cyUrIrjXaBaZk5VJM",
-    "authDomain": "tradex-98c00.firebaseapp.com",
-    "projectId": "tradex-98c00",
-    "storageBucket": "tradex-98c00.appspot.com",
-    "messagingSenderId": "1009697941836",
-    "appId": "1:1009697941836:web:db7e0502baedfdc83187e9",
-    "measurementId": "G-PM28S3DGM4"
+    "apiKey": os.getenv("FIREBASE_API_KEY"),
+    "authDomain": os.getenv("FIREBASE_AUTH_DOMAIN"),
+    "projectId": os.getenv("FIREBASE_PROJECT_ID"),
+    "storageBucket": os.getenv("FIREBASE_STORAGE_BUCKET"),
+    "messagingSenderId": os.getenv("FIREBASE_MESSAGING_SENDER_ID"),
+    "appId": os.getenv("FIREBASE_APP_ID"),
+    "measurementId": os.getenv("FIREBASE_MEASUREMENT_ID"),
 }
