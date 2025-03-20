@@ -28,7 +28,7 @@ build/
 # Environment variables and credentials
 .env
 *.env
-settings.py
+
 
 # Database and data files
 *.sqlite3
