@@ -216,7 +216,6 @@ async def handle_set_welcome_media_or_empty(message: types.Message):
     USER_SESSIONS.pop(user_id, None)
 
 # Command to start a broadcast
-# Command to start a broadcast
 @bot.message_handler(commands=['broadcast'])
 async def start_broadcast(message: types.Message):
     user_id = message.from_user.id
@@ -234,40 +233,6 @@ async def start_broadcast(message: types.Message):
     USER_SESSIONS[user_id] = {"command": "broadcast", "state": "awaiting_broadcast_message"}
     logging.info(f"User {user_id} started broadcast. State: awaiting_broadcast_message")
 
-# Handle the user's response for the broadcast message
-@bot.message_handler(func=lambda message: USER_SESSIONS.get(message.from_user.id, {}).get("command") == "broadcast" and USER_SESSIONS.get(message.from_user.id, {}).get("state") == "awaiting_broadcast_message")
-async def handle_broadcast_message(message: types.Message):
-    user_id = message.from_user.id
-
-    # Store the broadcast message text
-    broadcast_message = message.text
-
-    # Send the broadcast message to all users
-    users = db.collection(USERS_COLLECTION).stream()
-    success_count = 0
-    fail_count = 0
-
-    for user in users:
-        user_data = user.to_dict()
-        try:
-            # Check if the user has started a conversation with the bot
-            await bot.send_chat_action(user_data["user_id"], "typing")  # Test if the bot can interact with the user
-            await bot.send_message(
-                chat_id=user_data["user_id"],
-                text=broadcast_message
-            )
-            success_count += 1
-            logging.info(f"Broadcast message sent to {user_data['first_name']} (ID: {user_data['user_id']})")
-        except Exception as e:
-            fail_count += 1
-            logging.error(f"Failed to send broadcast message to {user_data['first_name']} (ID: {user_data['user_id']}): {e}")
-
-    await bot.reply_to(message, f"Broadcast message sent successfully to {success_count} users. Failed for {fail_count} users.")
-    logging.info(f"User {user_id} completed broadcast. Session cleared.")
-
-    # Clear the user's session
-    USER_SESSIONS.pop(user_id, None)
-    
 # Handle the user's response for the broadcast message
 @bot.message_handler(func=lambda message: USER_SESSIONS.get(message.from_user.id, {}).get("command") == "broadcast" and USER_SESSIONS.get(message.from_user.id, {}).get("state") == "awaiting_broadcast_message")
 async def handle_broadcast_message(message: types.Message):
