@@ -1,3 +1,4 @@
+#firebase_operations.py
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -46,5 +47,10 @@ def get_dm_message():
         return message.to_dict().get("text")
     return None
 
-def set_dm_message(new_message):
-    db.collection(MESSAGES_COLLECTION).document("welcome_message").set({"text": new_message})
+# Function to set the DM message in Firebase
+def set_dm_message(new_message, media_url=None, media_type=None):
+    message_data = {"text": new_message}
+    if media_url:
+        message_data["media_url"] = media_url
+        message_data["media_type"] = media_type
+    db.collection(MESSAGES_COLLECTION).document("welcome_message").set(message_data)

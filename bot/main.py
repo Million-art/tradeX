@@ -7,6 +7,8 @@ from telebot import types
 import firebase_admin
 from firebase_admin import credentials, firestore
 from dotenv import load_dotenv
+from config.cloudinary_config import upload_media 
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # Load environment variables
 load_dotenv()
@@ -39,12 +41,16 @@ def get_dm_message():
     message_ref = db.collection(MESSAGES_COLLECTION).document("welcome_message")
     message = message_ref.get()
     if message.exists:
-        return message.to_dict().get("text")
-    return DEFAULT_WELCOME_MESSAGE
+        return message.to_dict()
+    return {"text": DEFAULT_WELCOME_MESSAGE}
 
 # Function to set the DM message in Firebase
-def set_dm_message(new_message):
-    db.collection(MESSAGES_COLLECTION).document("welcome_message").set({"text": new_message})
+def set_dm_message(new_message, media_url=None, media_type=None):
+    message_data = {"text": new_message}
+    if media_url:
+        message_data["media_url"] = media_url
+        message_data["media_type"] = media_type
+    db.collection(MESSAGES_COLLECTION).document("welcome_message").set(message_data)
 
 # Function to add a user to Firebase
 def add_user(user_id, username, first_name, last_name):
@@ -76,13 +82,31 @@ async def handle_join_request(message: types.ChatJoinRequest):
     if is_new_user(user_id):
         add_user(user_id, username, first_name, last_name)
 
-    # Send the DM message
-    dm_message = get_dm_message()
+    # Get the DM message
+    message_data = get_dm_message()
+    dm_message = message_data.get("text", DEFAULT_WELCOME_MESSAGE)
+    media_url = message_data.get("media_url")
+    media_type = message_data.get("media_type")
+
     try:
-        await bot.send_message(
-            chat_id=user_id,
-            text=dm_message
-        )
+        if media_url:
+            if media_type == "photo":
+                await bot.send_photo(
+                    chat_id=user_id,
+                    photo=media_url,
+                    caption=dm_message
+                )
+            elif media_type == "video":
+                await bot.send_video(
+                    chat_id=user_id,
+                    video=media_url,
+                    caption=dm_message
+                )
+        else:
+            await bot.send_message(
+                chat_id=user_id,
+                text=dm_message
+            )
         print(f"DM sent to {username} (ID: {user_id})")
     except Exception as e:
         print(f"Failed to send DM to {username}: {e}")
@@ -101,14 +125,28 @@ async def set_welcome_message(message: types.Message):
         await bot.reply_to(message, "You are not authorized to use this command.")
         return
 
-    # Get the new welcome message from the command arguments
-    new_message = " ".join(message.text.split()[1:])
+    # Check if the message contains a photo or video
+    media_url = None
+    media_type = None
+    if message.photo:
+        file_info = await bot.get_file(message.photo[-1].file_id)
+        file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
+        media_url = upload_media(file_url, resource_type="image")
+        media_type = "photo"
+    elif message.video:
+        file_info = await bot.get_file(message.video.file_id)
+        file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
+        media_url = upload_media(file_url, resource_type="video")
+        media_type = "video"
+
+    # Get the new welcome message from the command arguments or caption
+    new_message = message.caption if (message.photo or message.video) else " ".join(message.text.split()[1:])
     if not new_message:
         await bot.reply_to(message, "Please provide a new welcome message.")
         return
 
     # Update the DM message in Firebase
-    set_dm_message(new_message)
+    set_dm_message(new_message, media_url, media_type)
     await bot.reply_to(message, "Welcome message updated successfully!")
 
 # Command to send a broadcast message
@@ -121,8 +159,22 @@ async def broadcast(message: types.Message):
         await bot.reply_to(message, "You are not authorized to use this command.")
         return
 
-    # Get the broadcast message from the command arguments
-    broadcast_message = " ".join(message.text.split()[1:])
+    # Check if the message contains a photo or video
+    media_url = None
+    media_type = None
+    if message.photo:
+        file_info = await bot.get_file(message.photo[-1].file_id)
+        file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
+        media_url = upload_media(file_url, resource_type="image")
+        media_type = "photo"
+    elif message.video:
+        file_info = await bot.get_file(message.video.file_id)
+        file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_info.file_path}"
+        media_url = upload_media(file_url, resource_type="video")
+        media_type = "video"
+
+    # Get the broadcast message from the command arguments or caption
+    broadcast_message = message.caption if (message.photo or message.video) else " ".join(message.text.split()[1:])
     if not broadcast_message:
         await bot.reply_to(message, "Please provide a message to broadcast.")
         return
@@ -132,10 +184,24 @@ async def broadcast(message: types.Message):
     for user in users:
         user_data = user.to_dict()
         try:
-            await bot.send_message(
-                chat_id=user_data["user_id"],
-                text=broadcast_message
-            )
+            if media_url:
+                if media_type == "photo":
+                    await bot.send_photo(
+                        chat_id=user_data["user_id"],
+                        photo=media_url,
+                        caption=broadcast_message
+                    )
+                elif media_type == "video":
+                    await bot.send_video(
+                        chat_id=user_data["user_id"],
+                        video=media_url,
+                        caption=broadcast_message
+                    )
+            else:
+                await bot.send_message(
+                    chat_id=user_data["user_id"],
+                    text=broadcast_message
+                )
             print(f"Broadcast message sent to {user_data['first_name']} (ID: {user_data['user_id']})")
         except Exception as e:
             print(f"Failed to send broadcast message to {user_data['first_name']}: {e}")
@@ -167,3 +233,23 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
         self.wfile.write('Hello, BOT is running!'.encode('utf-8'))
+
+
+# Start the HTTP server
+def run_server():
+    server_address = ('', 8080)  # Listen on all interfaces, port 8080
+    httpd = HTTPServer(server_address, handler)
+    print("Starting HTTP server on port 8080...")
+    httpd.serve_forever()
+
+# Run the bot
+if __name__ == "__main__":
+    # Start the HTTP server in a separate thread
+    import threading
+    server_thread = threading.Thread(target=run_server)
+    server_thread.daemon = True
+    server_thread.start()
+
+    # Start the bot's event loop
+    print("Starting bot...")
+    asyncio.run(bot.polling())
