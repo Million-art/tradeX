@@ -220,21 +220,34 @@ async def start(message: types.Message):
 # HTTP handler for Vercel
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(content_length)
-        update_dict = json.loads(post_data.decode('utf-8'))
+        try:
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            update_dict = json.loads(post_data.decode('utf-8'))
 
-        asyncio.run(self.process_update(update_dict))
+            # Log the incoming request
+            print(f"Incoming request: {update_dict}")
 
-        self.send_response(200)
-        self.end_headers()
+            # Process the update
+            asyncio.run(self.process_update(update_dict))
+
+            self.send_response(200)
+            self.end_headers()
+        except Exception as e:
+            print(f"Error processing request: {e}")
+            self.send_response(500)
+            self.end_headers()
 
     async def process_update(self, update_dict):
-        update = types.Update.de_json(update_dict)
-        await bot.process_new_updates([update])
+        try:
+            update = types.Update.de_json(update_dict)
+            await bot.process_new_updates([update])
+        except Exception as e:
+            print(f"Error processing update: {e}")
 
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
         self.wfile.write('Hello, BOT is running!'.encode('utf-8'))
- 
+
+   
