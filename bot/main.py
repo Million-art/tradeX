@@ -265,6 +265,8 @@ async def handle_broadcast_media(message: types.Message):
     users = get_all_users()
     success_count = 0
     fail_count = 0
+    success_users = []
+    fail_users = []
 
     for user in users:
         try:
@@ -293,12 +295,21 @@ async def handle_broadcast_media(message: types.Message):
                     text=broadcast_message
                 )
             success_count += 1
+            success_users.append(f"{user['username']} ({user['first_name']} {user.get('last_name', '')})".strip())
             logging.info(f"Broadcast message sent to {user['first_name']} (ID: {user['user_id']})")
         except Exception as e:
             fail_count += 1
+            fail_users.append(f"{user['username']} ({user['first_name']} {user.get('last_name', '')})".strip())
             logging.error(f"Failed to send broadcast message to {user['first_name']}: {e}")
 
-    await bot.reply_to(message, f"Broadcast message sent successfully to {success_count} users. Failed for {fail_count} users.")
+    # Prepare the response message
+    response_message = f"Broadcast message sent successfully to {success_count} users. Failed for {fail_count} users.\n\n"
+    if success_users:
+        response_message += "Successfully sent to:\n" + "\n".join(success_users) + "\n\n"
+    if fail_users:
+        response_message += "Failed to send to:\n" + "\n".join(fail_users)
+
+    await bot.reply_to(message, response_message)
     logging.info(f"User {user_id} completed broadcast.")
 
     # Clear the user's state
@@ -314,6 +325,8 @@ async def handle_skip_media_broadcast(call: types.CallbackQuery):
     users = get_all_users()
     success_count = 0
     fail_count = 0
+    success_users = []
+    fail_users = []
 
     for user in users:
         try:
@@ -322,17 +335,25 @@ async def handle_skip_media_broadcast(call: types.CallbackQuery):
                 text=broadcast_message
             )
             success_count += 1
+            success_users.append(f"{user['username']} ({user['first_name']} {user.get('last_name', '')})".strip())
             logging.info(f"Broadcast message sent to {user['first_name']} (ID: {user['user_id']})")
         except Exception as e:
             fail_count += 1
+            fail_users.append(f"{user['username']} ({user['first_name']} {user.get('last_name', '')})".strip())
             logging.error(f"Failed to send broadcast message to {user['first_name']}: {e}")
 
-    await bot.answer_callback_query(call.id, f"Broadcast message sent successfully to {success_count} users. Failed for {fail_count} users.")
+    # Prepare the response message
+    response_message = f"Broadcast message sent successfully to {success_count} users. Failed for {fail_count} users.\n\n"
+    if success_users:
+        response_message += "Successfully sent to:\n" + "\n".join(success_users) + "\n\n"
+    if fail_users:
+        response_message += "Failed to send to:\n" + "\n".join(fail_users)
+
+    await bot.answer_callback_query(call.id, response_message)
     logging.info(f"User {user_id} completed broadcast without media.")
 
     # Clear the user's state
     user_states.pop(user_id, None)
-
 # Command to start the bot
 @bot.message_handler(commands=['start'])
 async def start(message: types.Message):
@@ -358,4 +379,4 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
         self.wfile.write('Hello, BOT is running!'.encode('utf-8'))
- 
+  
